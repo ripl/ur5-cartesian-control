@@ -11,7 +11,7 @@ import numpy as np
 
 from scipy.spatial.transform import Rotation as R
 
-from ur5_cartesian_controller.trajectory_client import TrajectoryClient, Pose
+from ur5_cartesian_control.trajectory_client import TrajectoryClient, Pose
 
 # NOTE: Make sure that Logitech joystick is in "X" (Xbox?) mode. Not "D" (DirectInput) mode.
 # buttons

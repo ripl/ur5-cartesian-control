@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>ur5-cartesian-controller</name>
+  <name>ur5-cartesian-control</name>
   <version>0.0.0</version>
-  <description>ur5-cartesian-controller package</description>
+  <description>ur5-cartesian-control package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
