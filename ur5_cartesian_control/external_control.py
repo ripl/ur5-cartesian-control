@@ -4,7 +4,7 @@ from tkinter import W
 import rospy
 import signal
 from ros_utils import *
-from sensor_msgs.msg import Float32MultiArray
+from std_msgs.msg import String
 from robotiq_s_interface import Gripper
 from threading import BoundedSemaphore
 import numpy as np
@@ -33,7 +33,7 @@ class JoystickControl:
         self.rot_step = rospy.get_param("~rot_step", 0.6)
 
         # subscribe to joy commands
-        self._sub_joy = rospy.Subscriber(self.input_topic, Float32MultiArray, self.control_callback, queue_size=1)
+        self._sub_joy = rospy.Subscriber(self.input_topic, String, self.control_callback, queue_size=1)
 
         self.semaphore = BoundedSemaphore()
 
@@ -79,6 +79,8 @@ class JoystickControl:
         gripper_is_busy = self.semaphore.acquire(blocking=False)
         if gripper_is_busy:
             return
+
+        msg = [float(m) for m in msg.data.split()]
 
         quat = msg.data[3:7].as_quat()
 
