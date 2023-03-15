@@ -3,7 +3,6 @@
 from tkinter import W
 import rospy
 import signal
-from ros_utils import *
 from std_msgs.msg import String
 from robotiq_s_interface import Gripper
 from threading import BoundedSemaphore
@@ -89,7 +88,7 @@ class JoystickControl:
         # assert self.pos_step < 0.2, 'step >= 0.1 can be dangerous...'
 
         self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=10)
-        ROS_INFO('sending trajectory to the client... DONE')
+        rospy.loginfo('sending trajectory to the client... DONE')
 
         # Open / Close the gripper
         if abs(msg.data[7]) > eps:
@@ -102,7 +101,7 @@ class JoystickControl:
         self.semaphore.release()
 
     def _shutdown(self, *args):
-        ROS_INFO('Shutting down...')
+        rospy.loginfo('Shutting down...')
         self.gripper.shutdown()
 
 

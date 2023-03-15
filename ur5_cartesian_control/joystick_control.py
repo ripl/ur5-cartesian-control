@@ -3,7 +3,6 @@
 from tkinter import W
 import rospy
 import signal
-from ros_utils import *
 from sensor_msgs.msg import Joy
 from robotiq_s_interface import Gripper
 from threading import BoundedSemaphore
@@ -121,16 +120,16 @@ class JoystickControl:
 
         assert self.pos_step < 0.2, 'step >= 0.1 can be dangerous...'
         if not (abs(lp_x) < eps and abs(lp_y) < eps and abs(rp_y) < eps):
-            ROS_INFO(f'lp: {lp_x:.2f}, {lp_y:.2f}')
-            ROS_INFO(f'rp: {rp_x:.2f}, {rp_y:.2f}')
+            rospy.loginfo(f'lp: {lp_x:.2f}, {lp_y:.2f}')
+            rospy.loginfo(f'rp: {rp_x:.2f}, {rp_y:.2f}')
             traj = self._generate_trajectory(dx=lp_x * self.pos_step, 
                                              dy=-lp_y * self.pos_step,
                                              dz=rp_y * self.pos_step,
                                              delta_euler_z=rp_x * self.rot_step)
-            ROS_INFO(f'trajectory:\n{traj}')
-            # ROS_INFO('sending trajectory to the client...')
+            rospy.loginfo(f'trajectory:\n{traj}')
+            # rospy.loginfo('sending trajectory to the client...')
             self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=0.7)
-            # ROS_INFO('sending trajectory to the client... DONE')
+            # rospy.loginfo('sending trajectory to the client... DONE')
 
         elif reset:
             self.traj_client.send_cartesian_trajectory([self.init_pose])
@@ -167,7 +166,7 @@ class JoystickControl:
         return traj
 
     def _shutdown(self, *args):
-        ROS_INFO('Shutting down...')
+        rospy.loginfo('Shutting down...')
         self.gripper.shutdown()
 
 
