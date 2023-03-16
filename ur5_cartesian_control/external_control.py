@@ -81,7 +81,7 @@ class JoystickControl:
 
         msg = [float(m) for m in msg.data.split()]
 
-        quat = msg[3:7].as_quat()
+        quat = msg[3:7]
 
         traj = [Pose(pos=msg[:3], quat=quat)]
 
