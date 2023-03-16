@@ -73,7 +73,7 @@ class JoystickControl:
         else:
             raise ValueError(f'unknown mode: {self.gripper_mode}')
 
-    def joy_callback(self, msg):
+    def control_callback(self, msg):
         # return if another message is using the gripper
         gripper_is_busy = self.semaphore.acquire(blocking=False)
         if gripper_is_busy:
