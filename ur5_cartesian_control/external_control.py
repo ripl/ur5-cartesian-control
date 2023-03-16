@@ -83,11 +83,13 @@ class JoystickControl:
 
         quat = msg[3:7]
 
-        traj = [Pose(pos=msg[:3], quat=quat)]
+        new_pose = Pose(pos=msg[:3], quat=quat)
+        traj = [self.prev_pose, new_pose]
+        self.prev_pose = new_pose
 
         # assert self.pos_step < 0.2, 'step >= 0.1 can be dangerous...'
 
-        self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=10)
+        self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=1.0)
         rospy.loginfo('sending trajectory to the client... DONE')
 
         # Open / Close the gripper
