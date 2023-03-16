@@ -162,6 +162,7 @@ class TrajectoryClient:
             # rospy.loginfo("invalid joints {}".format(result.INVALID_JOINTS))
             # rospy.loginfo("invalid goal {}".format(result.INVALID_GOAL))
             # rospy.loginfo("invalid posture {}".format(result.INVALID_POSTURE))
+        rospy.loginfo('Finished send_cartesian_trajectory!')
 
     ###############################################################################################
     #                                                                                             #

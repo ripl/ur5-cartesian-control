@@ -32,7 +32,7 @@ class JoystickControl:
         self.rot_step = rospy.get_param("~rot_step", 0.6)
 
         # subscribe to joy commands
-        self._sub_joy = rospy.Subscriber(self.input_topic, String, self.control_callback, queue_size=1)
+        self._sub_joy = rospy.Subscriber(self.input_topic, String, self.control_callback, queue_size=None)
 
         self.semaphore = BoundedSemaphore()
 
@@ -53,6 +53,8 @@ class JoystickControl:
         self.preg_grip_input = 1.0  # Close
 
         # Move to the initial pose
+        self._initialize_gripper()
+
         self.traj_client.send_cartesian_trajectory([self.prev_pose])
 
         # NOTE: Is it necessary??
@@ -75,8 +77,9 @@ class JoystickControl:
 
     def control_callback(self, msg):
         # return if another message is using the gripper
-        gripper_is_busy = self.semaphore.acquire(blocking=False)
-        if gripper_is_busy:
+        gripper_is_free = self.semaphore.acquire(blocking=False)
+        if not gripper_is_free:
+            rospy.loginfo('Gripper is busy...')
             return
 
         msg = [float(m) for m in msg.data.split()]
@@ -90,7 +93,6 @@ class JoystickControl:
         # assert self.pos_step < 0.2, 'step >= 0.1 can be dangerous...'
 
         self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=1.0)
-        rospy.loginfo('sending trajectory to the client... DONE')
 
         # Open / Close the gripper
         if abs(msg[7]) > eps:
