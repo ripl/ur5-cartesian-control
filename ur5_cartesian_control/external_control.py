@@ -81,9 +81,9 @@ class JoystickControl:
 
         msg = [float(m) for m in msg.data.split()]
 
-        quat = msg.data[3:7].as_quat()
+        quat = msg[3:7].as_quat()
 
-        traj = [Pose(pos=msg.data[:3], quat=quat)]
+        traj = [Pose(pos=msg[:3], quat=quat)]
 
         # assert self.pos_step < 0.2, 'step >= 0.1 can be dangerous...'
 
@@ -91,8 +91,8 @@ class JoystickControl:
         rospy.loginfo('sending trajectory to the client... DONE')
 
         # Open / Close the gripper
-        if abs(msg.data[7]) > eps:
-            if msg.data[7] > eps:
+        if abs(msg[7]) > eps:
+            if msg[7] > eps:
                 self.gripper.close()
             else:
                 self.gripper.open()
