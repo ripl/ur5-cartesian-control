@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>ur5-cartesian-control</name>
+  <name>ur5_cartesian_control</name>
   <version>0.0.0</version>
   <description>ur5-cartesian-control package</description>
 

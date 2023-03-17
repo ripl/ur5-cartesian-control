@@ -45,6 +45,7 @@ from cartesian_control_msgs.msg import (
     FollowCartesianTrajectoryGoal,
     CartesianTrajectoryPoint,
 )
+from ros_utils import ROS_INFO, ROS_WARN
 
 # Compatibility for python2 and python3
 if sys.version_info[0] < 3:
@@ -83,13 +84,6 @@ CARTESIAN_TRAJECTORY_CONTROLLERS = [
 CONFLICTING_CONTROLLERS = ["joint_group_vel_controller", "twist_controller", "arm_controller"]
 
 
-class Pose:
-    def __init__(self, pos, quat):
-        self.pos = np.array(pos, dtype=np.float32)
-        self.quat = np.array(quat, dtype=np.float32)
-
-    def __repr__(self):
-        return repr('<Pose: [{pos}] [{quat}]>'.format(pos=' '.join([f'{val:.2f}' for val in self.pos]), quat=' '.join([f'{val:.2f}' for val in self.quat])))
 
 
 class TrajectoryClient:
@@ -100,10 +94,10 @@ class TrajectoryClient:
 
         timeout = rospy.Duration(5)
         self.switch_srv = rospy.ServiceProxy(
-            "controller_manager/switch_controller", SwitchController
+            "/controller_manager/switch_controller", SwitchController
         )
-        self.load_srv = rospy.ServiceProxy("controller_manager/load_controller", LoadController)
-        self.list_srv = rospy.ServiceProxy("controller_manager/list_controllers", ListControllers)
+        self.load_srv = rospy.ServiceProxy("/controller_manager/load_controller", LoadController)
+        self.list_srv = rospy.ServiceProxy("/controller_manager/list_controllers", ListControllers)
         try:
             self.switch_srv.wait_for_service(timeout.to_sec())
         except rospy.exceptions.ROSException as err:
@@ -112,7 +106,7 @@ class TrajectoryClient:
 
         # self.joint_trajectory_controller = JOINT_TRAJECTORY_CONTROLLERS[0]
         # self.cartesian_trajectory_controller = CARTESIAN_TRAJECTORY_CONTROLLERS[0]
-        self.cartesian_trajectory_controller = "forward_cartesian_traj_controller"
+        self.cartesian_trajectory_controller = "/forward_cartesian_traj_controller"
 
         self.trajectory_client = actionlib.SimpleActionClient(
             "{}/follow_cartesian_trajectory".format(self.cartesian_trajectory_controller),
@@ -136,19 +130,14 @@ class TrajectoryClient:
 
         # The following list are arbitrary positions
         # Change to your own needs if desired
-        pose_list = [
-            geometry_msgs.Pose(
-                geometry_msgs.Vector3(*pose.pos), geometry_msgs.Quaternion(*pose.quat)
-            ) for pose in trajectory
-        ]
-        for i, pose in enumerate(pose_list):
+        for i, pose in enumerate(trajectory):
             point = CartesianTrajectoryPoint()
             point.pose = pose
             point.time_from_start = rospy.Duration(init_time + time_step * i)
             goal.trajectory.points.append(point)
 
         if self.confirm_before_motion:
-            self.ask_confirmation(pose_list)
+            self.ask_confirmation(trajectory)
         rospy.loginfo(
             "Executing trajectory using the {}".format(self.cartesian_trajectory_controller)
         )
@@ -229,6 +218,14 @@ class TrajectoryClient:
 
 
 if __name__ == "__main__":
+    class Pose:
+        def __init__(self, pos, quat):
+            self.pos = np.array(pos, dtype=np.float32)
+            self.quat = np.array(quat, dtype=np.float32)
+
+        def __repr__(self):
+            return repr('<Pose: [{pos}] [{quat}]>'.format(pos=' '.join([f'{val:.2f}' for val in self.pos]), quat=' '.join([f'{val:.2f}' for val in self.quat])))
+
     rospy.init_node(node_name='cartesian_controller')
     client = TrajectoryClient()
     step = 0.05

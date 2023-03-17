@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ur5-cartesian-control)
+project(ur5_cartesian_control)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -10,9 +10,14 @@ project(ur5-cartesian-control)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
+  genmsg
+  message_generation
+  actionlib_msgs
+  actionlib
 )
 
-find_package(catkin REQUIRED genmsg actionlib_msgs actionlib)
+# find_package(catkin REQUIRED  actionlib_msgs actionlib)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -55,11 +60,10 @@ catkin_python_setup()
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  CartesianMoveAndGrip.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -82,6 +86,7 @@ catkin_python_setup()
 # )
 generate_messages(
   DEPENDENCIES
+   geometry_msgs
    actionlib_msgs
 )
 

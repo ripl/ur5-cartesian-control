@@ -2,7 +2,7 @@
   <arg name="open_value" default="0.0" doc="Position of the fingers (between [0,1]) to consider as 'open'" />
   <arg name="close_value" default="1.0" doc="Position of the fingers (between [0,1]) to consider as 'close'" />
 
-  <node pkg="ur5-cartesian-control" name="external_control" type="external_control.py" output="screen">
+  <node pkg="ur5_cartesian_control" name="external_control" type="external_control_srv.py" output="screen">
     <param name="gripper_open_value" value="$(arg open_value)" />
     <param name="gripper_close_value" value="$(arg close_value)" />
   </node>
