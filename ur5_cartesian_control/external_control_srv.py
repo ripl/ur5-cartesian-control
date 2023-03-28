@@ -9,12 +9,14 @@ from robotiq_s_interface import Gripper
 from threading import BoundedSemaphore
 import numpy as np
 from ros_utils import ROS_INFO, ROS_WARN
+import tf
 
 from scipy.spatial.transform import Rotation as R
 from ur5_cartesian_control.helper import get_arm, get_planning_scene, point2numpy
 
 from ur5_cartesian_control.trajectory_client import TrajectoryClient
 from ur5_cartesian_control.srv import CartesianMoveAndGrip, CartesianMoveAndGripResponse
+from ur5_cartesian_control.srv import LookupTransform, LookupTransformResponse
 
 eps = 1e-3
 
@@ -51,7 +53,9 @@ class ExternalControlSrv:
         self.traj_client = TrajectoryClient(confirm_before_motion=False)
         ROS_INFO('Instantiating Trajectory client...DONE')
 
-        self._srv = rospy.Service('~execute_trajectory', CartesianMoveAndGrip, self.control_callback)
+        self._srv = rospy.Service('~execute_trajectory', CartesianMoveAndGrip, self.control)
+        self._srv_tf = rospy.Service('~lookup_tf', CartesianMoveAndGrip, self.lookup_transform)
+        self._tf_listener = tf.TransformListener()
 
         ROS_INFO('Loading forward_cartesian_traj_controller...')
         self.traj_client.switch_controller('forward_cartesian_traj_controller')
@@ -70,6 +74,16 @@ class ExternalControlSrv:
         # listen for SIGINT
         signal.signal(signal.SIGINT, self._shutdown)
 
+    def lookup_transform(self, request: LookupTransform):
+        """Call tf lookup to retrieve the transformation."""
+
+        ROS_INFO(f'Looking up transform from {request.source_frame} to {request.target_frame}...')
+        trans, rot = self._tf_listener.lookupTransform(request.target_frame, request.source_frame, rospy.Time(0))
+        ROS_INFO(f'Looking up transform from {request.source_frame} to {request.target_frame}...done')
+
+        pose = Pose(position=trans, orientation=rot)
+        return LookupTransformResponse(transform=pose)
+
     def _initialize_gripper(self):
         self.gripper.activate()
 
@@ -84,7 +98,7 @@ class ExternalControlSrv:
         else:
             raise ValueError(f'unknown mode: {self.gripper_mode}')
 
-    def control_callback(self, request):
+    def control(self, request: CartesianMoveAndGrip):
         # return if another message is using the gripper
         gripper_is_free = self.semaphore.acquire(blocking=False)
         if not gripper_is_free:
