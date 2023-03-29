@@ -54,7 +54,7 @@ class ExternalControlSrv:
         ROS_INFO('Instantiating Trajectory client...DONE')
 
         self._srv = rospy.Service('~execute_trajectory', CartesianMoveAndGrip, self.control)
-        self._srv_tf = rospy.Service('~lookup_tf', CartesianMoveAndGrip, self.lookup_transform)
+        self._srv_tf = rospy.Service('~lookup_tf', LookupTransform, self.lookup_transform)
         self._tf_listener = tf.TransformListener()
 
         ROS_INFO('Loading forward_cartesian_traj_controller...')
@@ -77,11 +77,14 @@ class ExternalControlSrv:
     def lookup_transform(self, request: LookupTransform):
         """Call tf lookup to retrieve the transformation."""
 
-        ROS_INFO(f'Looking up transform from {request.source_frame} to {request.target_frame}...')
-        trans, rot = self._tf_listener.lookupTransform(request.target_frame, request.source_frame, rospy.Time(0))
-        ROS_INFO(f'Looking up transform from {request.source_frame} to {request.target_frame}...done')
+        source_frame = request.source_frame.data
+        target_frame = request.target_frame.data
+        ROS_INFO(f'Looking up transform from {source_frame} to {target_frame}...')
+        trans, rot = self._tf_listener.lookupTransform(target_frame, source_frame, rospy.Time(0))
+        ROS_INFO(f'Looking up transform from {source_frame} to {target_frame}...done')
+        ROS_INFO(f'trans: {trans}\trot: {rot}')
 
-        pose = Pose(position=trans, orientation=rot)
+        pose = Pose(position=Point(*trans), orientation=Quaternion(*rot))
         return LookupTransformResponse(transform=pose)
 
     def _initialize_gripper(self):
