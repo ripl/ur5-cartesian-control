@@ -1,4 +1,4 @@
-std_msgs/Float32 grip
+float64 grip
 
 ---
 bool success
