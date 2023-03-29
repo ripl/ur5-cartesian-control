@@ -1,6 +1,5 @@
 float64 exec_time
 geometry_msgs/Pose target_pose
-bool grip
 
 ---
 bool success

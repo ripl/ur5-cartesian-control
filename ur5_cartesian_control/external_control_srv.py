@@ -5,7 +5,7 @@ import rospy
 import signal
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose, Point, Quaternion
-from robotiq_s_interface import Gripper
+from robotiq_s_interface import AdjustableGripper
 from threading import BoundedSemaphore
 import numpy as np
 from ros_utils import ROS_INFO, ROS_WARN
@@ -15,7 +15,8 @@ from scipy.spatial.transform import Rotation as R
 from ur5_cartesian_control.helper import get_arm, get_planning_scene, point2numpy
 
 from ur5_cartesian_control.trajectory_client import TrajectoryClient
-from ur5_cartesian_control.srv import CartesianMoveAndGrip, CartesianMoveAndGripResponse
+from ur5_cartesian_control.srv import CartesianMoveTo, CartesianMoveToResponse
+from ur5_cartesian_control.srv import Grasp, GraspResponse
 from ur5_cartesian_control.srv import LookupTransform, LookupTransformResponse
 
 eps = 1e-3
@@ -31,8 +32,7 @@ class ExternalControlSrv:
 
         # Choices: ['basic', 'wide', 'pinch', 'scissor']
         self.gripper_mode = rospy.get_param("~gripper_mode", "pinch")
-        self.gripper_open_value = rospy.get_param("~gripper_open_value", 0.0)
-        self.gripper_close_value = rospy.get_param("~gripper_close_value", 1.0)
+        self.gripper_force = rospy.get_param("~gripper_force", 10)
 
         self.pos_step = rospy.get_param("~pos_step", 0.08)
         self.rot_step = rospy.get_param("~rot_step", 0.6)
@@ -40,27 +40,28 @@ class ExternalControlSrv:
         self.semaphore = BoundedSemaphore()
 
         # Instantiate Gripper Interface
-        self.gripper = Gripper(
-            open_value=self.gripper_open_value,
-            close_value=self.gripper_close_value,
+        ROS_INFO('Initializing Gripper...')
+        self.gripper = AdjustableGripper(
+            gripper_force=self.gripper_force  # This is fed to command.rFRA
         )
         self._initialize_gripper()
-        self.preg_grip_input = 1.0  # Close
+        ROS_INFO('Initializing Gripper...done')
 
-        ROS_INFO("hello world!!!")
         # Instantiate TrajectoryClient
         ROS_INFO('Instantiating Trajectory client...')
         self.traj_client = TrajectoryClient(confirm_before_motion=False)
         ROS_INFO('Instantiating Trajectory client...DONE')
 
-        self._srv = rospy.Service('~execute_trajectory', CartesianMoveAndGrip, self.control)
-        self._srv_tf = rospy.Service('~lookup_tf', LookupTransform, self.lookup_transform)
-        self._tf_listener = tf.TransformListener()
-
         ROS_INFO('Loading forward_cartesian_traj_controller...')
         self.traj_client.switch_controller('forward_cartesian_traj_controller')
         ROS_INFO('Loading forward_cartesian_traj_controller...DONE')
 
+        self._srv_move = rospy.Service('~execute_trajectory', CartesianMoveTo, self.move_to)
+        self._srv_grip = rospy.Service('~grasp', Grasp, self.grasp)
+        self._srv_tf = rospy.Service('~lookup_tf', LookupTransform, self.lookup_transform)
+        self._tf_listener = tf.TransformListener()
+
+        # TODO: Get current pose and move to the initial pose
 
         # Initial pose
         position = Point(x=0.1, y=-0.4, z=0.4)
@@ -69,14 +70,12 @@ class ExternalControlSrv:
         self.init_pose = Pose(position=position, orientation=orientation)
         self.prev_pose = self.init_pose
 
-
         # NOTE: Is it necessary??
         # listen for SIGINT
         signal.signal(signal.SIGINT, self._shutdown)
 
     def lookup_transform(self, request: LookupTransform):
         """Call tf lookup to retrieve the transformation."""
-
         source_frame = request.source_frame.data
         target_frame = request.target_frame.data
         ROS_INFO(f'Looking up transform from {source_frame} to {target_frame}...')
@@ -101,16 +100,11 @@ class ExternalControlSrv:
         else:
             raise ValueError(f'unknown mode: {self.gripper_mode}')
 
-    def control(self, request: CartesianMoveAndGrip):
-        # return if another message is using the gripper
-        gripper_is_free = self.semaphore.acquire(blocking=False)
-        if not gripper_is_free:
-            ROS_INFO('Gripper is busy...')
-            return CartesianMoveAndGripResponse(success=False)
+        self.gripper.grasp(1.0)  # Close the gripper
 
+    def move_to(self, request: CartesianMoveTo):
         target_pose = request.target_pose
         exec_time = request.exec_time
-        grip = request.grip
 
         # Scale execution time with trajectory length
         init_pos = point2numpy(self.prev_pose.position)
@@ -130,15 +124,67 @@ class ExternalControlSrv:
 
         self.prev_pose = target_pose
 
+        return CartesianMoveToResponse(success=True)
+
+    def grasp(self, request: Grasp):
+        # return if another message is using the gripper
+        gripper_is_free = self.semaphore.acquire(blocking=False)
+        if not gripper_is_free:
+            ROS_WARN('Gripper is busy...')
+            return GraspResponse(success=False)
+
+        grip = request.grip
+
         # Open / Close the gripper
-        if grip:
-            self.gripper.close()
+        # NOTE: 0: fully open, 1: fully close
+        if grip < 0 or 1 < grip:
+            ROS_WARN(f'Invalid grip value is recieved: {grip} (expected: 0 <= grip <= 1)')
         else:
-            self.gripper.open()
+            self.gripper.grasp(grip)
 
         # release lock and exit
         self.semaphore.release()
-        return CartesianMoveAndGripResponse(success=True)
+        return GraspResponse(success=True)
+
+    # def control(self, request: CartesianMoveAndGrip):
+    #     # return if another message is using the gripper
+    #     gripper_is_free = self.semaphore.acquire(blocking=False)
+    #     if not gripper_is_free:
+    #         ROS_INFO('Gripper is busy...')
+    #         return CartesianMoveAndGripResponse(success=False)
+
+    #     target_pose = request.target_pose
+    #     exec_time = request.exec_time
+    #     grip = request.grip
+
+    #     # Scale execution time with trajectory length
+    #     init_pos = point2numpy(self.prev_pose.position)
+    #     last_pos = point2numpy(target_pose.position)
+
+    #     traj_len = np.linalg.norm(last_pos - init_pos)
+
+    #     if exec_time is None:
+    #         exec_time = max(1.0, traj_len * 10)
+    #     else:
+    #         exec_time = max(1.0, traj_len * 10, exec_time)
+
+    #     traj = [self.prev_pose, target_pose]
+    #     ROS_INFO(f'sending trajectory: {traj}')
+    #     self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=exec_time)
+    #     ROS_INFO(f'sending trajectory: {traj} DONE')
+
+    #     self.prev_pose = target_pose
+
+    #     # Open / Close the gripper
+    #     # NOTE: 0: fully open, 1: fully close
+    #     if grip < 0 or 1 < grip:
+    #         ROS_WARN(f'Invalid grip value is recieved: {grip} (expected: 0 <= grip <= 1)')
+    #     else:
+    #         self.gripper.grasp(grip)
+
+    #     # release lock and exit
+    #     self.semaphore.release()
+    #     return CartesianMoveAndGripResponse(success=True)
 
     def _shutdown(self, *args):
         ROS_INFO('Shutting down...')

@@ -62,7 +62,8 @@ catkin_python_setup()
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  CartesianMoveAndGrip.srv
+  CartesianMoveTo.srv
+  Grasp.srv
   LookupTransform.srv
 )
 
