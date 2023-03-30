@@ -136,12 +136,14 @@ class ExternalControlSrv:
         last_pos = point2numpy(target_pose.position)
 
         traj_len = np.linalg.norm(last_pos - init_pos)
+        ROS_INFO(f'Trajectory length {traj_len}')
 
         if exec_time is None:
-            exec_time = max(1.0, traj_len * 10)
+            exec_time = max(1.5, traj_len * 15)
         else:
-            exec_time = max(1.0, traj_len * 10, exec_time)
+            exec_time = max(1.5, traj_len * 15, exec_time)
 
+        ROS_INFO(f'Execution time {exec_time}')
         traj = [curr_pose, target_pose]
         ROS_INFO(f'sending trajectory: {traj}')
         self.traj_client.send_cartesian_trajectory(traj, init_time=0.0, time_step=exec_time)
